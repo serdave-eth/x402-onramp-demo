@@ -1,6 +1,6 @@
 # x402 + Coinbase Onramp Demo
 
-This is a Next.js demonstration of integrating x402 payments with Coinbase Onramp for seamless fiat-to-crypto-to-payment flows.
+Next.js demo integrating x402 payments with Coinbase Onramp for seamless fiat-to-crypto-to-payment flows.
 
 ## What This Demo Shows
 
@@ -28,12 +28,13 @@ This project demonstrates a revolutionary payment flow:
 1. **Node.js 18+** and npm
 2. **CDP Account** - Sign up at [cdp.coinbase.com](https://cdp.coinbase.com)
 3. **Wallet** - MetaMask or other Web3 wallet
-4. **Base Sepolia ETH** - For gas fees (get from [faucet](https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet))
+4. **Base mainnet ETH** - For gas fees
 
 ### Installation
 
 1. **Clone and install dependencies:**
    ```bash
+   git clone https://github.com/serdave-eth/x402-onramp-demo.git
    cd x402-onramp-demo
    npm install
    ```
@@ -49,7 +50,7 @@ This project demonstrates a revolutionary payment flow:
    CDP_API_KEY_ID=your-api-key-id  
    CDP_API_KEY_SECRET=your-api-key-secret
    WALLET_ADDRESS=0xYourWalletAddress
-   NETWORK=base-sepolia
+   NETWORK=base
    ```
 
 3. **Start the development server:**
@@ -71,22 +72,23 @@ This project demonstrates a revolutionary payment flow:
 #### Wallet Setup
 
 1. **Install MetaMask:** [metamask.io](https://metamask.io)
-2. **Add Base Sepolia Network:**
-   - Network Name: Base Sepolia
-   - RPC URL: https://sepolia.base.org
-   - Chain ID: 84532
+2. **Add Base Mainnet Network:**
+   - Network Name: Base
+   - RPC URL: https://mainnet.base.org
+   - Chain ID: 8453
    - Currency: ETH
-3. **Get Test ETH:** [Base Sepolia Faucet](https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet)
+   - Block Explorer: https://basescan.org
+3. **Get ETH on Base:** Transfer from other networks or buy directly
 
 ## How to Test
 
 ### Demo Flow
 
-1. **Connect Wallet:** Use MetaMask or WalletConnect
+1. **Connect Wallet:** Use MetaMask or WalletConnect on Base mainnet
 2. **Click "Access Premium Content"** - Triggers x402 payment request
 3. **Payment Required:** Server responds with 402 status
 4. **Onramp Redirect:** Automatically detects insufficient USDC
-5. **Purchase Flow:** Redirected to Coinbase Onramp (simulated in demo)
+5. **Purchase Flow:** Redirected to Coinbase Onramp for real USDC purchase
 6. **Return & Pay:** Complete x402 payment with newly purchased USDC
 7. **Success:** See "Payment Complete" message
 
@@ -98,29 +100,6 @@ This demo is configured for **mainnet with real payments**:
 - **Network:** Base mainnet with real USDC
 - **Payment Amount:** $0.001 USDC (very small for testing)
 - **Onramp Integration:** Real Coinbase Onramp for purchasing USDC
-
-### Setting Up Real Onramp (Production)
-
-To use real Coinbase Onramp instead of the demo simulation:
-
-1. **Get Real CDP API Keys:**
-   - Visit [cdp.coinbase.com](https://cdp.coinbase.com)
-   - Create a project and generate **Secret API Keys**
-   - Apply for [Onramp access](https://support.cdp.coinbase.com/onramp-onboarding)
-
-2. **Update Session Token API:**
-   - Replace the mock JWT generation in `/pages/api/session-token.ts`
-   - Implement proper ES256 signing with your CDP private key
-   - Make real API calls to `https://api.developer.coinbase.com/onramp/v1/token`
-
-3. **Environment Variables:**
-   ```env
-   CDP_PROJECT_ID=your-real-project-id
-   CDP_API_KEY_ID=your-real-api-key-id
-   CDP_API_KEY_SECRET=your-real-api-key-secret
-   ```
-
-With real API keys, users will be able to complete actual USDC purchases through Coinbase Onramp.
 
 ## Project Structure
 
@@ -151,70 +130,41 @@ export const middleware = paymentMiddleware(
   {
     '/api/premium-content': {
       price: '$0.001',
-      network: "base-sepolia"
+      network: "base"
     }
   },
-  { url: "https://x402.org/facilitator" }
+  facilitator
 );
 ```
 
 ### Onramp Integration
 
 ```typescript
-// Detect insufficient funds and redirect
-if (response.status === 402) {
-  const paymentInfo = await response.json();
-  onPaymentRequired(paymentInfo.amount);
-}
-
-// Generate Onramp URL
-const onrampUrl = `https://pay.coinbase.com/buy/select-asset?${params}`;
+// Generate real session tokens using CDP SDK
+const jwt = await generateJwt({
+  apiKeyId: process.env.CDP_API_KEY_ID!,
+  apiKeySecret: process.env.CDP_API_KEY_SECRET!,
+  requestMethod: 'POST',
+  requestHost: 'api.developer.coinbase.com',
+  requestPath: '/onramp/v1/token'
+});
 ```
-
-## Production Deployment
-
-### Environment Configuration
-
-For production use:
-
-1. **Switch to Mainnet:**
-   ```env
-   NETWORK=base
-   ```
-
-2. **Use CDP Facilitator:**
-   ```typescript
-   import { facilitator } from "@coinbase/x402";
-   // Replace middleware facilitator config
-   ```
-
-3. **Real Session Tokens:**
-   - Implement proper JWT signing with CDP private key
-   - Call actual CDP Session Token API
-   - Handle real Onramp redirects
-
-### Security Considerations
-
-- ✅ **Private keys** stored securely (CDP manages this)
-- ✅ **Session tokens** expire after 5 minutes
-- ✅ **Payment verification** through x402 facilitator
-- ✅ **Environment variables** for sensitive data
 
 ## Troubleshooting
 
 ### Common Issues
 
-**"Payment required" but have USDC:**
-- Check you're on the correct network (Base Sepolia)
-- Ensure sufficient balance for payment + gas
+**Chain ID mismatch:**
+- Ensure your wallet is connected to Base mainnet (chain ID 8453)
+- Switch networks in MetaMask if needed
 
-**Onramp redirect not working:**
+**"Invalid session token" errors:**
 - Verify CDP credentials in `.env.local`
-- Check session token generation logs
+- Ensure you have Onramp access approved by Coinbase
 
-**Wallet connection issues:**
-- Try refreshing the page
-- Check MetaMask is unlocked and on Base Sepolia
+**Payment failures:**
+- Check sufficient ETH for gas fees on Base
+- Verify wallet has signing permissions
 
 ### Support
 
